@@ -2,6 +2,13 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 import Users from '../models/UserModel.js';
+// import StudentRegistration from '../models/StudentRegistrationModel'
+
+// export const RegisterStudent = async (req, res) => {
+//   try {
+
+//   }
+// }
 
 export const getUsers = async (req, res) => {
   try {
@@ -56,7 +63,7 @@ export const Login = async (req, res) => {
       { userId, username, email },
       process.env.ACCESS_TOKEN_SECRET,
       {
-        expiresIn: '15s',
+        expiresIn: '1d',
       }
     );
 
@@ -82,7 +89,7 @@ export const Login = async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    res.json({ accessToken });
+    res.json({ username, accessToken, email, userId });
   } catch (error) {
     res.status(404).json({ message: 'User not found' });
   }
