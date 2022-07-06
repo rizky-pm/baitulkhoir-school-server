@@ -13,9 +13,6 @@ const Students = db.define(
     student_full_name: {
       type: DataTypes.STRING,
     },
-    student_class: {
-      type: DataTypes.STRING,
-    },
     gender: {
       type: DataTypes.STRING,
     },
@@ -23,7 +20,7 @@ const Students = db.define(
       type: DataTypes.STRING,
     },
     address: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT('long'),
     },
     parent_full_name: {
       type: DataTypes.STRING,

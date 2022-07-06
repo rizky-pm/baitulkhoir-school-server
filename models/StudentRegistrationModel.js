@@ -21,7 +21,7 @@ export const StudentRegistration = db.define(
       type: DataTypes.STRING,
     },
     address: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT('long'),
     },
     parent_full_name: {
       type: DataTypes.STRING,
@@ -48,16 +48,16 @@ export const StudentRegistrationFiles = db.define(
       type: DataTypes.STRING,
     },
     student_photo: {
-      type: DataTypes.BLOB('long'),
+      type: DataTypes.TEXT('long'),
     },
     parent_id_Card: {
-      type: DataTypes.BLOB('long'),
+      type: DataTypes.TEXT('long'),
     },
     birth_certificate: {
-      type: DataTypes.BLOB('long'),
+      type: DataTypes.TEXT('long'),
     },
     family_identity_card: {
-      type: DataTypes.BLOB('long'),
+      type: DataTypes.TEXT('long'),
     },
   },
   {

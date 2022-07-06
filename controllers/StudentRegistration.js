@@ -17,19 +17,13 @@ import {
   StudentRegistrationFiles,
   StudentRegistrationPeriod,
 } from '../models/StudentRegistrationModel.js';
-import {
-  encrypt,
-  decrypt,
-  encryptFile,
-  decryptFile,
-  encryptString,
-  decryptString,
-} from '../helper/encryption.js';
 import Students from '../models/StudentModel.js';
 import { bodyEmail } from '../helper/bodyEmail.js';
+import {
+  encryptAes256cbc,
+  decryptAes256cbc,
+} from '../helper/encryptionAes256Cbc.js';
 
-// Start Encryption
-const CryptoAlgorithm = 'aes-256-cbc';
 const secret = {
   iv: Buffer.from('7561b9d82b0c978b753a392f6af42084', 'hex'),
   key: Buffer.from(
@@ -37,8 +31,6 @@ const secret = {
     'hex'
   ),
 };
-
-// End Encryption
 
 // Start Multer File Uploader
 const storage = multer.memoryStorage({
@@ -69,7 +61,6 @@ export const getRegistrationPeriod = async (req, res) => {
   try {
     const period = await StudentRegistrationPeriod.findAll();
 
-    console.log(period);
     res.json(period);
   } catch (error) {
     console.log(error);
@@ -78,10 +69,8 @@ export const getRegistrationPeriod = async (req, res) => {
 
 export const openRegistration = async (req, res) => {
   const { startDate, endDate, registrationPeriod, startSeason } = req.body;
-  console.log(req.body);
 
   try {
-    console.log('openRegistration');
     await StudentRegistrationPeriod.findOrCreate({
       where: {
         registration_period: registrationPeriod,
@@ -125,17 +114,13 @@ schedule.scheduleJob('0 0 * * *', async () => {
     });
 
     let registrationEnd = response[0]?.registration_end;
-    console.log(registrationEnd);
 
     const isRegistrationActive = moment(currentDate).isSameOrBefore(
       registrationEnd,
       'days'
     );
 
-    // console.log(isRegistrationActive);
-
     if (!isRegistrationActive) {
-      console.log('expired!');
       const seccondResponse = StudentRegistrationPeriod.destroy({
         where: {},
         truncate: true,
@@ -166,37 +151,80 @@ export const registerStudent = async (req, res, next) => {
   try {
     StudentRegistration.create({
       student_id: studentId,
-      student_full_name: encryptString(studentName, secret.key, secret.iv),
-      gender: encryptString(studentGender, secret.key, secret.iv),
-      birth_date: encryptString(studentBirthDate, secret.key, secret.iv),
-      address: encryptString(studentAddress, secret.key, secret.iv),
-      parent_full_name: encryptString(parentFullName, secret.key, secret.iv),
-      parent_email_address: encryptString(parentEmail, secret.key, secret.iv),
-      parent_phone_number: encryptString(parentPhone, secret.key, secret.iv),
-      period: encryptString(period, secret.key, secret.iv),
+      student_full_name: encryptAes256cbc(
+        studentName,
+        secret.key,
+        secret.iv,
+        'fullName'
+      ),
+      gender: encryptAes256cbc(studentGender, secret.key, secret.iv, 'gender'),
+      birth_date: encryptAes256cbc(
+        studentBirthDate,
+        secret.key,
+        secret.iv,
+        'birthDate'
+      ),
+      address: encryptAes256cbc(
+        studentAddress,
+        secret.key,
+        secret.iv,
+        'address'
+      ),
+      parent_full_name: encryptAes256cbc(
+        parentFullName,
+        secret.key,
+        secret.iv,
+        'parentFullName'
+      ),
+      parent_email_address: encryptAes256cbc(
+        parentEmail,
+        secret.key,
+        secret.iv,
+        'parentEmailAddress'
+      ),
+      parent_phone_number: encryptAes256cbc(
+        parentPhone,
+        secret.key,
+        secret.iv,
+        'parentPhoneNumber'
+      ),
+      period: encryptAes256cbc(period, secret.key, secret.iv, 'period'),
     });
+
+    // console.log(new Buffer.from(req.files['studentPhoto'][0]).toString());
+    // console.log('Buffer file', req.files['studentPhoto'][0]);
+    // console.log(
+    //   'Parsed to string',
+    //   JSON.stringify(req.files['studentPhoto'][0])
+    // );
+    // console.log('Parsed to object', req.files['studentPhoto'][0]);
+    // newEncryption(JSON.stringify(req.files['studentPhoto'][0]), "secretkey", 256)
 
     StudentRegistrationFiles.create({
       student_id: studentId,
-      student_photo: encryptFile(
-        req.files['studentPhoto'][0].buffer,
+      student_photo: encryptAes256cbc(
+        JSON.stringify(req.files['studentPhoto'][0]),
         secret.key,
-        secret.iv
+        secret.iv,
+        'studentPhoto'
       ),
-      parent_id_Card: encryptFile(
-        req.files['parentIdCard'][0].buffer,
+      parent_id_Card: encryptAes256cbc(
+        JSON.stringify(req.files['parentIdCard'][0]),
         secret.key,
-        secret.iv
+        secret.iv,
+        'parentIdCard'
       ),
-      birth_certificate: encryptFile(
-        req.files['birthCertificate'][0].buffer,
+      birth_certificate: encryptAes256cbc(
+        JSON.stringify(req.files['birthCertificate'][0]),
         secret.key,
-        secret.iv
+        secret.iv,
+        'birthCertificate'
       ),
-      family_identity_card: encryptFile(
-        req.files['familyIdentityCard'][0].buffer,
+      family_identity_card: encryptAes256cbc(
+        JSON.stringify(req.files['familyIdentityCard'][0]),
         secret.key,
-        secret.iv
+        secret.iv,
+        'familyIdentityCard'
       ),
     });
 
@@ -216,37 +244,37 @@ export const getStudentsRegister = async (req, res) => {
       raw: true,
     });
 
-    // console.log({ studentsRegister });
-
     let data = [];
 
     studentsRegister.map((student) => {
+      console.log(student.student_full_name);
+
       data.push({
         student_id: student.student_id,
-        student_full_name: decryptString(
+        student_full_name: decryptAes256cbc(
           student.student_full_name,
           secret.key,
           secret.iv
         ),
-        gender: decryptString(student.gender, secret.key, secret.iv),
-        birth_date: decryptString(student.birth_date, secret.key, secret.iv),
-        address: decryptString(student.address, secret.key, secret.iv),
-        parent_full_name: decryptString(
+        gender: decryptAes256cbc(student.gender, secret.key, secret.iv),
+        birth_date: decryptAes256cbc(student.birth_date, secret.key, secret.iv),
+        address: decryptAes256cbc(student.address, secret.key, secret.iv),
+        parent_full_name: decryptAes256cbc(
           student.parent_full_name,
           secret.key,
           secret.iv
         ),
-        parent_email_address: decryptString(
+        parent_email_address: decryptAes256cbc(
           student.parent_email_address,
           secret.key,
           secret.iv
         ),
-        parent_phone_number: decryptString(
+        parent_phone_number: decryptAes256cbc(
           student.parent_phone_number,
           secret.key,
           secret.iv
         ),
-        period: decryptString(student.period, secret.key, secret.iv),
+        period: decryptAes256cbc(student.period, secret.key, secret.iv),
         createdAt: student.createdAt,
         updatedAt: student.updatedAt,
       });
@@ -264,37 +292,43 @@ export const getStudentRegisterDetail = async (req, res) => {
       `SELECT * FROM studentregistration INNER JOIN registrationfiles ON studentregistration.student_id = registrationfiles.student_id WHERE studentregistration.student_id = "${req.params.student_id}"`
     );
 
-    const decryptedStudentPhoto = decryptFile(
+    const decryptedStudentPhoto = decryptAes256cbc(
       results[0].student_photo,
       secret.key,
-      secret.iv
-    );
-    const decryptedParentIdCard = decryptFile(
-      results[0].parent_id_Card,
-      secret.key,
-      secret.iv
-    );
-    const decryptedBirthCertificate = decryptFile(
-      results[0].birth_certificate,
-      secret.key,
-      secret.iv
-    );
-    const decryptedFamilyIdentityCard = decryptFile(
-      results[0].family_identity_card,
-      secret.key,
-      secret.iv
+      secret.iv,
+      'studentPhoto'
     );
 
-    const studentPhotoFileType = await fileTypeFromBuffer(
-      decryptedStudentPhoto
+    let DecryptedAndParsedStudentPhoto = JSON.parse(decryptedStudentPhoto);
+
+    const decryptedParentIdCard = decryptAes256cbc(
+      results[0].parent_id_Card,
+      secret.key,
+      secret.iv,
+      'parentIdCard'
     );
-    const parentIdCardFileType = await fileTypeFromBuffer(
-      decryptedParentIdCard
+
+    let DecryptedAndParsedParentIdCard = JSON.parse(decryptedParentIdCard);
+
+    const decryptedBirthCertificate = decryptAes256cbc(
+      results[0].birth_certificate,
+      secret.key,
+      secret.iv,
+      'birthCertificate'
     );
-    const birthCertificateFileType = await fileTypeFromBuffer(
+
+    let DecryptedAndParsedBirthCertificate = JSON.parse(
       decryptedBirthCertificate
     );
-    const familyIdentityCardFileType = await fileTypeFromBuffer(
+
+    const decryptedFamilyIdentityCard = decryptAes256cbc(
+      results[0].family_identity_card,
+      secret.key,
+      secret.iv,
+      'familyIdentityCard'
+    );
+
+    let DecryptedAndParsedFamilyIdentityCard = JSON.parse(
       decryptedFamilyIdentityCard
     );
 
@@ -302,54 +336,92 @@ export const getStudentRegisterDetail = async (req, res) => {
       {
         // ...results[0],
         student_id: results[0].student_id,
-        student_full_name: decryptString(
+        student_full_name: decryptAes256cbc(
           results[0].student_full_name,
           secret.key,
-          secret.iv
+          secret.iv,
+          'studentFullName'
         ),
-        gender: decryptString(results[0].gender, secret.key, secret.iv),
-        birth_date: decryptString(results[0].birth_date, secret.key, secret.iv),
-        address: decryptString(results[0].address, secret.key, secret.iv),
-        parent_full_name: decryptString(
+        gender: decryptAes256cbc(
+          results[0].gender,
+          secret.key,
+          secret.iv,
+          'gender'
+        ),
+        birth_date: decryptAes256cbc(
+          results[0].birth_date,
+          secret.key,
+          secret.iv,
+          'birthDate'
+        ),
+        address: decryptAes256cbc(
+          results[0].address,
+          secret.key,
+          secret.iv,
+          'address'
+        ),
+        parent_full_name: decryptAes256cbc(
           results[0].parent_full_name,
           secret.key,
-          secret.iv
+          secret.iv,
+          'parentFullName'
         ),
-        parent_email_address: decryptString(
+        parent_email_address: decryptAes256cbc(
           results[0].parent_email_address,
           secret.key,
-          secret.iv
+          secret.iv,
+          'parentEmailAddress'
         ),
-        parent_phone_number: decryptString(
+        parent_phone_number: decryptAes256cbc(
           results[0].parent_phone_number,
           secret.key,
-          secret.iv
+          secret.iv,
+          'parentPhoneNumber'
         ),
-        period: decryptString(results[0].period, secret.key, secret.iv),
+        period: decryptAes256cbc(
+          results[0].period,
+          secret.key,
+          secret.iv,
+          'period'
+        ),
+
         studentPhoto: {
-          data: decryptedStudentPhoto,
-          extension: studentPhotoFileType.ext,
-          mimeType: studentPhotoFileType.mime,
+          data: DecryptedAndParsedStudentPhoto.buffer.data,
+          extension: 'image/jpeg',
+          mimeType: 'image/jpeg',
         },
+
         parentIdCard: {
-          data: decryptedParentIdCard,
-          extension: parentIdCardFileType.ext,
-          mimeType: parentIdCardFileType.mime,
+          data: DecryptedAndParsedParentIdCard.buffer.data,
+          extension: 'image/jpeg',
+          mimeType: 'image/jpeg',
         },
         birthCertificate: {
-          data: decryptedBirthCertificate,
-          extension: birthCertificateFileType.ext,
-          mimeType: birthCertificateFileType.mime,
+          data: DecryptedAndParsedBirthCertificate.buffer.data,
+          extension: 'image/jpeg',
+          mimeType: 'image/jpeg',
         },
         familyIdentityCard: {
-          data: decryptedFamilyIdentityCard,
-          extension: familyIdentityCardFileType.ext,
-          mimeType: familyIdentityCardFileType.mime,
+          data: DecryptedAndParsedFamilyIdentityCard.buffer.data,
+          extension: 'image/jpeg',
+          mimeType: 'image/jpeg',
+        },
+
+        studentPhotoEncrypted: {
+          data: results[0].student_photo,
+        },
+        parentIdCardEncrypted: {
+          data: results[0].parent_id_Card,
+        },
+        birthCertificateEncrypted: {
+          data: results[0].birth_certificate,
+        },
+        familyIdentityCardEncrypted: {
+          data: results[0].family_identity_card,
         },
       },
     ];
 
-    console.log({ results });
     res.json(newResults);
   } catch (error) {
     res.status(404).json({ message: 'User not found' });
@@ -395,23 +467,23 @@ export const approveStudent = async (req, res) => {
         if (error) {
           return console.log(error);
         }
-
-        const respone = await StudentRegistration.destroy({
-          where: {
-            student_id: student_id,
-          },
-        });
-
-        res.status(200);
       });
     }
+
+    const response = await StudentRegistration.destroy({
+      where: {
+        student_id: student_id,
+      },
+    });
+
+    res.json(response);
 
     // const [result, met] = await db.query(
     //   `UPDATE students SET student_class = "${classroom}" WHERE id = "${results}"`
     // );
 
     // res.status(200);
-    res.json(results);
+    // res.json(results);
   } catch (error) {
     console.log(error);
   }

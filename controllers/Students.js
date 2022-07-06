@@ -162,6 +162,19 @@ export const getStudentDetail = async (req, res) => {
           extension: familyIdentityCardFileType.ext,
           mimeType: familyIdentityCardFileType.mime,
         },
+
+        studentPhotoEncrypted: {
+          data: results[0].student_photo,
+        },
+        parentIdCardEncrypted: {
+          data: results[0].parent_id_Card,
+        },
+        birthCertificateEncrypted: {
+          data: results[0].birth_certificate,
+        },
+        familyIdentityCardEncrypted: {
+          data: results[0].family_identity_card,
+        },
       },
     ];
 
