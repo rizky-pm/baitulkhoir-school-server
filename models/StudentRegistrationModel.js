@@ -84,8 +84,8 @@ export const StudentRegistrationPeriod = db.define('registrationperiod', {
 StudentRegistration.hasOne(StudentRegistrationFiles);
 StudentRegistrationFiles.belongsTo(StudentRegistration);
 
-(async () => {
-  await db.sync();
-})();
+// (async () => {
+//   await db.sync();
+// })();
 
 // export default StudentRegistration;

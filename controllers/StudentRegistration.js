@@ -1,15 +1,12 @@
 import multer from 'multer';
-import crypto from 'crypto';
-import fs, { truncateSync } from 'fs';
-import path from 'path';
 import schedule from 'node-schedule';
 import moment from 'moment';
 import 'moment/locale/id.js';
 import nodemailer from 'nodemailer';
-import stream, { Stream } from 'stream';
 import { nanoid } from 'nanoid';
-import { fileTypeFromBuffer } from 'file-type';
 import { Op } from 'sequelize';
+import { fileTypeFromBuffer } from 'file-type';
+import { readChunk } from 'read-chunk';
 
 import db from '../config/Database.js';
 import {
@@ -17,12 +14,11 @@ import {
   StudentRegistrationFiles,
   StudentRegistrationPeriod,
 } from '../models/StudentRegistrationModel.js';
-import Students from '../models/StudentModel.js';
 import { bodyEmail } from '../helper/bodyEmail.js';
 import {
   encryptAes256cbc,
   decryptAes256cbc,
-} from '../helper/encryptionAes256Cbc.js';
+} from '../helper/cryptographyAes256Cbc.js';
 
 const secret = {
   iv: Buffer.from('7561b9d82b0c978b753a392f6af42084', 'hex'),
@@ -292,6 +288,8 @@ export const getStudentRegisterDetail = async (req, res) => {
       `SELECT * FROM studentregistration INNER JOIN registrationfiles ON studentregistration.student_id = registrationfiles.student_id WHERE studentregistration.student_id = "${req.params.student_id}"`
     );
 
+    const regex = /^.+\//; // match '/' character and everything before it
+
     const decryptedStudentPhoto = decryptAes256cbc(
       results[0].student_photo,
       secret.key,
@@ -301,6 +299,9 @@ export const getStudentRegisterDetail = async (req, res) => {
 
     let DecryptedAndParsedStudentPhoto = JSON.parse(decryptedStudentPhoto);
 
+    const studentPhotoMimeType = DecryptedAndParsedStudentPhoto.mimetype;
+    const studentPhotoExt = studentPhotoMimeType.replace(regex, ''); // removes '/' character with everything before it
+
     const decryptedParentIdCard = decryptAes256cbc(
       results[0].parent_id_Card,
       secret.key,
@@ -309,6 +310,9 @@ export const getStudentRegisterDetail = async (req, res) => {
     );
 
     let DecryptedAndParsedParentIdCard = JSON.parse(decryptedParentIdCard);
+
+    const parentIdCardMimeType = DecryptedAndParsedParentIdCard.mimetype;
+    const parentIdCardExt = parentIdCardMimeType.replace(regex, ''); // removes '/' character with everything before it
 
     const decryptedBirthCertificate = decryptAes256cbc(
       results[0].birth_certificate,
@@ -321,6 +325,10 @@ export const getStudentRegisterDetail = async (req, res) => {
       decryptedBirthCertificate
     );
 
+    const birthCertificateMimeType =
+      DecryptedAndParsedBirthCertificate.mimetype;
+    const birthCertificateExt = birthCertificateMimeType.replace(regex, ''); // removes '/' character with everything before it
+
     const decryptedFamilyIdentityCard = decryptAes256cbc(
       results[0].family_identity_card,
       secret.key,
@@ -331,6 +339,10 @@ export const getStudentRegisterDetail = async (req, res) => {
     let DecryptedAndParsedFamilyIdentityCard = JSON.parse(
       decryptedFamilyIdentityCard
     );
+
+    const familyIdentityCardMimeType =
+      DecryptedAndParsedFamilyIdentityCard.mimetype;
+    const familyIdentityCardExt = familyIdentityCardMimeType.replace(regex, ''); // removes '/' character with everything before it
 
     const newResults = [
       {
@@ -387,24 +399,24 @@ export const getStudentRegisterDetail = async (req, res) => {
 
         studentPhoto: {
           data: DecryptedAndParsedStudentPhoto.buffer.data,
-          extension: 'image/jpeg',
-          mimeType: 'image/jpeg',
+          extension: studentPhotoExt,
+          mimeType: studentPhotoMimeType,
         },
 
         parentIdCard: {
           data: DecryptedAndParsedParentIdCard.buffer.data,
-          extension: 'image/jpeg',
-          mimeType: 'image/jpeg',
+          extension: parentIdCardExt,
+          mimeType: parentIdCardMimeType,
         },
         birthCertificate: {
           data: DecryptedAndParsedBirthCertificate.buffer.data,
-          extension: 'image/jpeg',
-          mimeType: 'image/jpeg',
+          extension: birthCertificateExt,
+          mimeType: birthCertificateMimeType,
         },
         familyIdentityCard: {
           data: DecryptedAndParsedFamilyIdentityCard.buffer.data,
-          extension: 'image/jpeg',
-          mimeType: 'image/jpeg',
+          extension: familyIdentityCardExt,
+          mimeType: familyIdentityCardMimeType,
         },
 
         studentPhotoEncrypted: {

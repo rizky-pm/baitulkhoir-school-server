@@ -41,8 +41,8 @@ const Students = db.define(
   }
 );
 
-(async () => {
-  await db.sync();
-})();
+// (async () => {
+//   await db.sync();
+// })();
 
 export default Students;

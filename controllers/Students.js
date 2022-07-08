@@ -1,21 +1,10 @@
 import Students from '../models/StudentModel.js';
 import db from '../config/Database.js';
-import {
-  encryptFile,
-  decryptFile,
-  encryptString,
-  decryptString,
-} from '../helper/encryption.js';
+import { decryptAes256cbc } from '../helper/cryptographyAes256Cbc.js';
 
-import multer from 'multer';
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import { fileTypeFromBuffer } from 'file-type';
 import { Op } from 'sequelize';
 
 // Start Encryption
-const CryptoAlgorithm = 'aes-256-cbc';
 const secret = {
   iv: Buffer.from('7561b9d82b0c978b753a392f6af42084', 'hex'),
   key: Buffer.from(
@@ -41,30 +30,30 @@ export const getStudents = async (req, res) => {
     students.forEach((student) => {
       data.push({
         student_id: student.student_id,
-        student_full_name: decryptString(
+        student_full_name: decryptAes256cbc(
           student.student_full_name,
           secret.key,
           secret.iv
         ),
-        gender: decryptString(student.gender, secret.key, secret.iv),
-        birth_date: decryptString(student.birth_date, secret.key, secret.iv),
-        address: decryptString(student.address, secret.key, secret.iv),
-        parent_full_name: decryptString(
+        gender: decryptAes256cbc(student.gender, secret.key, secret.iv),
+        birth_date: decryptAes256cbc(student.birth_date, secret.key, secret.iv),
+        address: decryptAes256cbc(student.address, secret.key, secret.iv),
+        parent_full_name: decryptAes256cbc(
           student.parent_full_name,
           secret.key,
           secret.iv
         ),
-        parent_email_address: decryptString(
+        parent_email_address: decryptAes256cbc(
           student.parent_email_address,
           secret.key,
           secret.iv
         ),
-        parent_phone_number: decryptString(
+        parent_phone_number: decryptAes256cbc(
           student.parent_phone_number,
           secret.key,
           secret.iv
         ),
-        period: decryptString(student.period, secret.key, secret.iv),
+        period: decryptAes256cbc(student.period, secret.key, secret.iv),
       });
     });
 
@@ -80,87 +69,134 @@ export const getStudentDetail = async (req, res) => {
       `SELECT * FROM students INNER JOIN registrationfiles ON students.student_id = registrationfiles.student_id WHERE students.student_id = "${req.params.student_id}"`
     );
 
-    const decryptedStudentPhoto = decryptFile(
+    const regex = /^.+\//; // match '/' character and everything before it
+
+    const decryptedStudentPhoto = decryptAes256cbc(
       results[0].student_photo,
       secret.key,
-      secret.iv
-    );
-    const decryptedParentIdCard = decryptFile(
-      results[0].parent_id_Card,
-      secret.key,
-      secret.iv
-    );
-    const decryptedBirthCertificate = decryptFile(
-      results[0].birth_certificate,
-      secret.key,
-      secret.iv
-    );
-    const decryptedFamilyIdentityCard = decryptFile(
-      results[0].family_identity_card,
-      secret.key,
-      secret.iv
+      secret.iv,
+      'studentPhoto'
     );
 
-    const studentPhotoFileType = await fileTypeFromBuffer(
-      decryptedStudentPhoto
+    let DecryptedAndParsedStudentPhoto = JSON.parse(decryptedStudentPhoto);
+
+    const studentPhotoMimeType = DecryptedAndParsedStudentPhoto.mimetype;
+    const studentPhotoExt = studentPhotoMimeType.replace(regex, ''); // removes '/' character with everything before it
+
+    const decryptedParentIdCard = decryptAes256cbc(
+      results[0].parent_id_Card,
+      secret.key,
+      secret.iv,
+      'parentIdCard'
     );
-    const parentIdCardFileType = await fileTypeFromBuffer(
-      decryptedParentIdCard
+
+    let DecryptedAndParsedParentIdCard = JSON.parse(decryptedParentIdCard);
+
+    const parentIdCardMimeType = DecryptedAndParsedParentIdCard.mimetype;
+    const parentIdCardExt = parentIdCardMimeType.replace(regex, ''); // removes '/' character with everything before it
+
+    const decryptedBirthCertificate = decryptAes256cbc(
+      results[0].birth_certificate,
+      secret.key,
+      secret.iv,
+      'birthCertificate'
     );
-    const birthCertificateFileType = await fileTypeFromBuffer(
+
+    let DecryptedAndParsedBirthCertificate = JSON.parse(
       decryptedBirthCertificate
     );
-    const familyIdentityCardFileType = await fileTypeFromBuffer(
+
+    const birthCertificateMimeType =
+      DecryptedAndParsedBirthCertificate.mimetype;
+    const birthCertificateExt = birthCertificateMimeType.replace(regex, ''); // removes '/' character with everything before it
+
+    const decryptedFamilyIdentityCard = decryptAes256cbc(
+      results[0].family_identity_card,
+      secret.key,
+      secret.iv,
+      'familyIdentityCard'
+    );
+
+    let DecryptedAndParsedFamilyIdentityCard = JSON.parse(
       decryptedFamilyIdentityCard
     );
+
+    const familyIdentityCardMimeType =
+      DecryptedAndParsedFamilyIdentityCard.mimetype;
+    const familyIdentityCardExt = familyIdentityCardMimeType.replace(regex, ''); // removes '/' character with everything before it
 
     const newResults = [
       {
         // ...results[0],
         student_id: results[0].student_id,
-        student_full_name: decryptString(
+        student_full_name: decryptAes256cbc(
           results[0].student_full_name,
           secret.key,
-          secret.iv
+          secret.iv,
+          'fullName'
         ),
-        gender: decryptString(results[0].gender, secret.key, secret.iv),
-        birth_date: decryptString(results[0].birth_date, secret.key, secret.iv),
-        address: decryptString(results[0].address, secret.key, secret.iv),
-        parent_full_name: decryptString(
+        gender: decryptAes256cbc(
+          results[0].gender,
+          secret.key,
+          secret.iv,
+          'gender'
+        ),
+        birth_date: decryptAes256cbc(
+          results[0].birth_date,
+          secret.key,
+          secret.iv,
+          'birthDate'
+        ),
+        address: decryptAes256cbc(
+          results[0].address,
+          secret.key,
+          secret.iv,
+          'address'
+        ),
+        parent_full_name: decryptAes256cbc(
           results[0].parent_full_name,
           secret.key,
-          secret.iv
+          secret.iv,
+          'parentFullName'
         ),
-        parent_email_address: decryptString(
+        parent_email_address: decryptAes256cbc(
           results[0].parent_email_address,
           secret.key,
-          secret.iv
+          secret.iv,
+          'parentEmailAddress'
         ),
-        parent_phone_number: decryptString(
+        parent_phone_number: decryptAes256cbc(
           results[0].parent_phone_number,
           secret.key,
-          secret.iv
+          secret.iv,
+          'parentPhoneNumber'
         ),
-        period: decryptString(results[0].period, secret.key, secret.iv),
+        period: decryptAes256cbc(
+          results[0].period,
+          secret.key,
+          secret.iv,
+          'period'
+        ),
+
         studentPhoto: {
-          data: decryptedStudentPhoto,
-          extension: studentPhotoFileType.ext,
-          mimeType: studentPhotoFileType.mime,
+          data: DecryptedAndParsedStudentPhoto.buffer.data,
+          extension: studentPhotoExt,
+          mimeType: studentPhotoMimeType,
         },
         parentIdCard: {
-          data: decryptedParentIdCard,
-          extension: parentIdCardFileType.ext,
-          mimeType: parentIdCardFileType.mime,
+          data: DecryptedAndParsedParentIdCard.buffer.data,
+          extension: parentIdCardExt,
+          mimeType: parentIdCardMimeType,
         },
         birthCertificate: {
-          data: decryptedBirthCertificate,
-          extension: birthCertificateFileType.ext,
-          mimeType: birthCertificateFileType.mime,
+          data: DecryptedAndParsedBirthCertificate.buffer.data,
+          extension: birthCertificateExt,
+          mimeType: birthCertificateMimeType,
         },
         familyIdentityCard: {
-          data: decryptedFamilyIdentityCard,
-          extension: familyIdentityCardFileType.ext,
-          mimeType: familyIdentityCardFileType.mime,
+          data: DecryptedAndParsedFamilyIdentityCard.buffer.data,
+          extension: familyIdentityCardExt,
+          mimeType: familyIdentityCardMimeType,
         },
 
         studentPhotoEncrypted: {
