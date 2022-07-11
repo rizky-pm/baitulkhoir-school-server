@@ -187,15 +187,6 @@ export const registerStudent = async (req, res, next) => {
       period: encryptAes256cbc(period, secret.key, secret.iv, 'period'),
     });
 
-    // console.log(new Buffer.from(req.files['studentPhoto'][0]).toString());
-    // console.log('Buffer file', req.files['studentPhoto'][0]);
-    // console.log(
-    //   'Parsed to string',
-    //   JSON.stringify(req.files['studentPhoto'][0])
-    // );
-    // console.log('Parsed to object', req.files['studentPhoto'][0]);
-    // newEncryption(JSON.stringify(req.files['studentPhoto'][0]), "secretkey", 256)
-
     StudentRegistrationFiles.create({
       student_id: studentId,
       student_photo: encryptAes256cbc(
